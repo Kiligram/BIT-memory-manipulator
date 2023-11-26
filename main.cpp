@@ -5,8 +5,10 @@
 #include <vector>
 #include "memory_search.cpp"
 
+const std::string AssaultCubePName= "ac_client.exe";
+
 // inspired by https://www.youtube.com/watch?v=mxS7_TVATYo&t=5s
-DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
+DWORD GetModuleBaseAddress(const TCHAR* lpszModuleName, DWORD pID) {
     DWORD dwModuleBaseAddress = 0;
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pID); // make snapshot of all modules within process
     MODULEENTRY32 ModuleEntry32 = { 0 };
@@ -30,7 +32,7 @@ DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
 }
 
 // inspired by https://stackoverflow.com/questions/865152/how-can-i-get-a-process-handle-by-its-name-in-c
-DWORD GetProcessIdByName(TCHAR* processName) {
+DWORD GetProcessIdByName(const TCHAR* processName) {
     PROCESSENTRY32 entry;
     entry.dwSize = sizeof(PROCESSENTRY32);
 
@@ -41,6 +43,7 @@ DWORD GetProcessIdByName(TCHAR* processName) {
     {
         while (Process32Next(snapshot, &entry) == TRUE)
         {
+            //std::wcout << entry.szExeFile << std::endl;
             if (_tcsicmp(entry.szExeFile, processName) == 0)
             {
                 pID = entry.th32ProcessID;
@@ -73,7 +76,13 @@ void printAddresses(const std::vector<void*> foundValues) {
 }
 
 int main() {
-    TCHAR processName[] = L"ac_client.exe";
+    std::cout << "Memory manipulator" << std::endl;
+    std::cout << "Enter process name to attach: ";
+    std::string processNameString;
+    std::getline(std::cin, processNameString);
+    std::wstring widestr = std::wstring(processNameString.begin(), processNameString.end());
+
+    const TCHAR* processName = widestr.c_str();
     
     DWORD pID = GetProcessIdByName(processName);
     HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
@@ -101,12 +110,10 @@ int main() {
 
     const char* helpList =
         "\n0: exit\n"
-        "1: increase ammunition amount in AssaulCube\n"
+        "1: increase ammunition amount in AssaultCube\n"
         "2: first scan for a value\n"
         "3: next scan for a value\n"
         "4: modify value on address\n";
-
-    std::cout << "Memory manipulator" << std::endl;
 
     std::vector<void*> foundValues;
     std::string command;
@@ -122,6 +129,10 @@ int main() {
         }
 
         if (command == "1") {
+            if (processNameString != AssaultCubePName) {
+                std::cout << "This function is available for AssaultCube only" << std::endl;
+                continue;
+            }
             std::cout << "How much ammo do you want?: ";
             int newAmmo = 0;
             std::cin >> newAmmo;
