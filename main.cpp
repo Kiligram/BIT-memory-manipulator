@@ -29,25 +29,52 @@ DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
     return dwModuleBaseAddress;
 }
 
+DWORD GetProcessIdByName(TCHAR* processName) {
+    PROCESSENTRY32 entry;
+    entry.dwSize = sizeof(PROCESSENTRY32);
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    DWORD pID = NULL;
+
+    if (Process32First(snapshot, &entry) == TRUE)
+    {
+        while (Process32Next(snapshot, &entry) == TRUE)
+        {
+            if (_tcsicmp(entry.szExeFile, processName) == 0)
+            {
+                pID = entry.th32ProcessID;
+            }
+        }
+    }
+
+    CloseHandle(snapshot);
+
+    return pID;
+}
 
 int main() {
-    HWND hProcessWindow = FindWindow(NULL, L"AssaultCube");
-    if (hProcessWindow == NULL) {
-        std::cout << "Process not found" << std::endl;
-        return 0;
-    }
+    //HWND hProcessWindow = FindWindow(NULL, L"AssaultCube");
+    //if (hProcessWindow == NULL) {
+    //    std::cout << "Process not found" << std::endl;
+    //    return 0;
+    //}
 
-    DWORD pID = NULL; // ID of the process
-    GetWindowThreadProcessId(hProcessWindow, &pID);
-    HANDLE processHandle = NULL;
-    processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
+    //DWORD pID = NULL; // ID of the process
+    //GetWindowThreadProcessId(hProcessWindow, &pID);
+    //HANDLE processHandle = NULL;
+    //processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
 
-    if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) {
-        std::cout << "Failed to open process" << std::endl;
-        return 0;
-    }
+    //if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) {
+    //    std::cout << "Failed to open process" << std::endl;
+    //    return 0;
+    //}
 
+    //TCHAR processName1[] = L"ac_client.exe";
     TCHAR processName[] = L"ac_client.exe";
+    
+    DWORD pID = GetProcessIdByName(processName);
+    HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
+
     DWORD gameBaseAddress = GetModuleBaseAddress(processName, pID);
     DWORD offsetGameToBaseAdress = 0x00183828;
     std::vector<DWORD> pointsOffsets{ 0x8,0x56C,0x64,0x68,0x30,0x2BC };
