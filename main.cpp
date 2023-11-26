@@ -83,22 +83,22 @@ int main() {
         return 1;
     }
 
-    DWORD gameBaseAddress = GetModuleBaseAddress(processName, pID);
-    DWORD offsetGameToBaseAdress = 0x00183828;
-    std::vector<DWORD> pointsOffsets{ 0x8,0x56C,0x64,0x68,0x30,0x2BC };
+    DWORD processBaseAddress = GetModuleBaseAddress(processName, pID);
+    DWORD offsetFromModuleBase = 0x00183828;
+    std::vector<DWORD> ammoOffsets{ 0x8,0x56C,0x64,0x68,0x30,0x2BC };
     DWORD baseAddress = NULL;
 
-    //Get value at gamebase+offset
-    ReadProcessMemory(processHandle, (LPVOID)(gameBaseAddress + offsetGameToBaseAdress), &baseAddress, sizeof(baseAddress), NULL);
+    // get value at first offset
+    ReadProcessMemory(processHandle, (LPVOID)(processBaseAddress + offsetFromModuleBase), &baseAddress, sizeof(baseAddress), NULL);
 
-    DWORD pointsAddress = baseAddress; //the Adress we need -> change now while going through offsets
-    for (size_t i = 0; i < pointsOffsets.size() - 1; i++) // -1 because we dont want the value at the last offset
+    DWORD ammoAddress = baseAddress; // the adress we need -> it will change while going through offsets
+    for (size_t i = 0; i < ammoOffsets.size() - 1; i++) // -1 because we dont want the value at the last offset
     {
-        ReadProcessMemory(processHandle, (LPVOID)(pointsAddress + pointsOffsets.at(i)), &pointsAddress, sizeof(pointsAddress), NULL);
+        ReadProcessMemory(processHandle, (LPVOID)(ammoAddress + ammoOffsets.at(i)), &ammoAddress, sizeof(ammoAddress), NULL);
     }
-    pointsAddress += pointsOffsets.at(pointsOffsets.size() - 1); //Add Last offset -> done!!
+    ammoAddress += ammoOffsets.at(ammoOffsets.size() - 1); // add last offset -> done!!
 
-    //"UI"
+
     const char* helpList =
         "\n0: exit\n"
         "1: increase ammunition amount in AssaulCube\n"
@@ -117,15 +117,15 @@ int main() {
         fseek(stdin, 0, SEEK_END);
         std::getline(std::cin, command);
 
-        if (command == "0") { // Exit
+        if (command == "0") {
             return 0;
         }
 
         if (command == "1") {
             std::cout << "How much ammo do you want?: ";
-            int newPoints = 0;
-            std::cin >> newPoints;
-            WriteProcessMemory(processHandle, (LPVOID)(pointsAddress), &newPoints, sizeof(newPoints), NULL);
+            int newAmmo = 0;
+            std::cin >> newAmmo;
+            WriteProcessMemory(processHandle, (LPVOID)(ammoAddress), &newAmmo, sizeof(newAmmo), NULL);
         }
 
         if (command == "2") {

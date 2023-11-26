@@ -1,4 +1,4 @@
-// the following code is modified code taken from https://github.com/meemknight/memGrab/tree/master
+// the following code is a modified code taken from https://github.com/meemknight/memGrab/tree/master
 // and http://kylehalladay.com/blog/2020/05/20/Rendering-With-Notepad.html
 #pragma once
 #include <iostream>
@@ -12,8 +12,6 @@
 
 #undef min
 #undef max
-//using PID = DWORD;
-//using PROCESS = HANDLE;
 
 enum
 {
