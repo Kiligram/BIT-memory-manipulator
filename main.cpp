@@ -5,7 +5,7 @@
 #include <vector>
 #include "memory_search.cpp"
 
-const std::string AssaultCubePName= "ac_client.exe";
+const std::string AssaultCubePName = "ac_client.exe";
 
 // inspired by https://www.youtube.com/watch?v=mxS7_TVATYo&t=5s
 DWORD GetModuleBaseAddress(const TCHAR* lpszModuleName, DWORD pID) {
