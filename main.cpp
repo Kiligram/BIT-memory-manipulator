@@ -24,32 +24,36 @@ DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
 
     }
     CloseHandle(hSnapshot);
+
+    std::cout << std::hex << dwModuleBaseAddress << std::endl;
     return dwModuleBaseAddress;
 }
 
 
 int main() {
-    std::vector<void*> foundValues;
-    HWND hGameWindow = FindWindow(NULL, L"AssaultCube");
-    if (hGameWindow == NULL) {
-        std::cout << "Start the game!" << std::endl;
+    HWND hProcessWindow = FindWindow(NULL, L"AssaultCube");
+    if (hProcessWindow == NULL) {
+        std::cout << "Process not found" << std::endl;
         return 0;
     }
-    DWORD pID = NULL; // ID of our Game
-    GetWindowThreadProcessId(hGameWindow, &pID);
+
+    DWORD pID = NULL; // ID of the process
+    GetWindowThreadProcessId(hProcessWindow, &pID);
     HANDLE processHandle = NULL;
     processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
-    if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) { // error handling
+
+    if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) {
         std::cout << "Failed to open process" << std::endl;
         return 0;
     }
 
-    TCHAR gameName[] = L"ac_client.exe";
-    DWORD gameBaseAddress = GetModuleBaseAddress(gameName, pID);
+    TCHAR processName[] = L"ac_client.exe";
+    DWORD gameBaseAddress = GetModuleBaseAddress(processName, pID);
     DWORD offsetGameToBaseAdress = 0x00183828;
     std::vector<DWORD> pointsOffsets{ 0x8,0x56C,0x64,0x68,0x30,0x2BC };
     DWORD baseAddress = NULL;
-    //Get value at gamebase+offset -> store it in baseAddress
+
+    //Get value at gamebase+offset
     ReadProcessMemory(processHandle, (LPVOID)(gameBaseAddress + offsetGameToBaseAdress), &baseAddress, sizeof(baseAddress), NULL);
     std::cout << "debugginfo: baseaddress = " << std::hex << baseAddress << std::endl;
     DWORD pointsAddress = baseAddress; //the Adress we need -> change now while going through offsets
@@ -64,6 +68,9 @@ int main() {
     std::cout << "Memory manipulator" << std::endl;
     std::cout << "Press Numpad 0 to EXIT" << std::endl;
     std::cout << "Press Numpad 1 to set Points" << std::endl;
+
+    std::vector<void*> foundValues;
+
     while (true) {
         Sleep(50);
         if (GetAsyncKeyState(VK_NUMPAD0)) { // Exit
@@ -73,10 +80,11 @@ int main() {
             std::cout << "How many points you want?" << std::endl;
             int newPoints = 0;
             std::cin >> newPoints;
-            WriteProcessMemory(processHandle, (LPVOID)(pointsAddress), &newPoints, 4, 0);
+            WriteProcessMemory(processHandle, (LPVOID)(pointsAddress), &newPoints, sizeof(newPoints), NULL);
         }
         if (GetAsyncKeyState(VK_NUMPAD2)) {//Mouseposition
-            std::cout << "First scan" << std::endl;
+            foundValues.clear();
+            std::cout << "New scan" << std::endl;
             std::cout << "Enter integer value to find" << std::endl;
             
             int inValue = 0;
@@ -84,36 +92,56 @@ int main() {
 
             // Cast the integer value to a void pointer
             void* voidPtr = (void*)&inValue;
-            std::vector<char*> foundValuesText;
 
-            std::vector<void*> foundValues = findBytePatternInProcessMemory(processHandle, voidPtr, sizeof(inValue));
+            foundValues = findBytePatternInProcessMemory(processHandle, voidPtr, sizeof(inValue));
             
-            if (!foundValues.empty())
-            {
+            if (!foundValues.empty()) {
+                std::cout << "Found " << foundValues.size() << " addresses. Show them? y/N: ";
+                std::string showConsent;
+                fseek(stdin, 0, SEEK_END);
+                std::getline(std::cin, showConsent);
+
+                if (showConsent == "y" || showConsent == "yes") {
+                    for (int i = 0; i < foundValues.size(); i++) {
+                        std::stringstream ss;
+                        std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
+                    }
+                }
+            }
+        }
+        if (GetAsyncKeyState(VK_NUMPAD3)) {//Mouseposition
+            std::cout << "Next scan" << std::endl;
+            std::cout << "Enter integer value to find" << std::endl;
+            int inValue = 0;
+            std::cin >> inValue;
+            void* voidPtr = (void*)&inValue;
+            refindBytePatternInProcessMemory(processHandle, &inValue, sizeof(inValue), foundValues);
+
+            if (!foundValues.empty()) {
                 std::cout << "Found " << foundValues.size() << " addresses. Show them? y/N: ";
                 char show;
                 std::cin >> show;
                 if (show == 'y') {
-
-                    for (int i = 0; i < foundValues.size(); i++)
-                    {
-                        //if (i >= foundValuesText.size())
-                        //{
-                        //    foundValuesText.push_back(new char[17]);
-                        //}
-
+                    for (int i = 0; i < foundValues.size(); i++) {
                         std::stringstream ss;
                         std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
-
-                        //strcpy(foundValuesText[i], ss.str().c_str());
-
                     }
                 }
-                //for (const char* value : foundValuesText) {
-                //    std::cout << value << std::endl;
-                //}
-
             }
+        }
+
+
+        if (GetAsyncKeyState(VK_NUMPAD4)) {//Mouseposition
+            DWORD address = 0;
+            int newValue = 0;
+
+            std::cout << "Enter address to write to (hex)" << std::endl;
+            std::cin >> std::hex >> address;
+
+            std::cout << "Enter value to write (decimal)" << std::endl;
+            std::cin >> newValue;
+
+            WriteProcessMemory(processHandle, (LPVOID)(address), &newValue, sizeof(newValue), NULL);
 
         }
     }
