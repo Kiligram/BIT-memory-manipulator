@@ -1,4 +1,6 @@
-//#pragma once
+// the following code is modified code taken from https://github.com/meemknight/memGrab/tree/master
+// and http://kylehalladay.com/blog/2020/05/20/Rendering-With-Notepad.html
+#pragma once
 #include <iostream>
 #include <Windows.h>
 #include <TlHelp32.h>
@@ -22,16 +24,6 @@ enum
 	memQueryFlags_Execute = 0b0100,
 
 };
-
-//void writeMemory(HANDLE process, void* ptr, void* data, size_t size)
-//{
-//	BOOL writeSucceeded = WriteProcessMemory(
-//		process,
-//		ptr,
-//		data,
-//		size,
-//		NULL);
-//}
 
 inline bool readMemory(HANDLE process, void* start, size_t size, void* buff)
 {
@@ -127,7 +119,7 @@ inline bool getNextQuery(OppenedQuery& query, void*& low, void*& hi, int& flags)
 	}
 }
 
-//http://kylehalladay.com/blog/2020/05/20/Rendering-With-Notepad.html
+// inspired by http://kylehalladay.com/blog/2020/05/20/Rendering-With-Notepad.html
 inline std::vector<void*> findBytePatternInProcessMemory(HANDLE process, void* pattern, size_t patternLen)
 {
 	if (patternLen == 0) { return {}; }

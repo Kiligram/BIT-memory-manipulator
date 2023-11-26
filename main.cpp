@@ -5,6 +5,7 @@
 #include <vector>
 #include "memory_search.cpp"
 
+// inspired by https://www.youtube.com/watch?v=mxS7_TVATYo&t=5s
 DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
     DWORD dwModuleBaseAddress = 0;
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pID); // make snapshot of all modules within process
@@ -25,10 +26,10 @@ DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
     }
     CloseHandle(hSnapshot);
 
-    //std::cout << std::hex << dwModuleBaseAddress << std::endl;
     return dwModuleBaseAddress;
 }
 
+// inspired by https://stackoverflow.com/questions/865152/how-can-i-get-a-process-handle-by-its-name-in-c
 DWORD GetProcessIdByName(TCHAR* processName) {
     PROCESSENTRY32 entry;
     entry.dwSize = sizeof(PROCESSENTRY32);
@@ -52,24 +53,26 @@ DWORD GetProcessIdByName(TCHAR* processName) {
     return pID;
 }
 
+void printAddresses(const std::vector<void*> foundValues) {
+    if (!foundValues.empty()) {
+        std::cout << "Found " << std::dec << foundValues.size() << " addresses. Show them? y/N: ";
+        std::string showConsent;
+        fseek(stdin, 0, SEEK_END);
+        std::getline(std::cin, showConsent);
+
+        if (showConsent == "y" || showConsent == "yes") {
+            for (size_t i = 0; i < foundValues.size(); i++) {
+                std::stringstream ss;
+                std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
+            }
+        }
+    }
+    else {
+        std::cout << "No addresses found" << std::endl;
+    }
+}
+
 int main() {
-    //HWND hProcessWindow = FindWindow(NULL, L"AssaultCube");
-    //if (hProcessWindow == NULL) {
-    //    std::cout << "Process not found" << std::endl;
-    //    return 0;
-    //}
-
-    //DWORD pID = NULL; // ID of the process
-    //GetWindowThreadProcessId(hProcessWindow, &pID);
-    //HANDLE processHandle = NULL;
-    //processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
-
-    //if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) {
-    //    std::cout << "Failed to open process" << std::endl;
-    //    return 0;
-    //}
-
-    //TCHAR processName1[] = L"ac_client.exe";
     TCHAR processName[] = L"ac_client.exe";
     
     DWORD pID = GetProcessIdByName(processName);
@@ -87,12 +90,11 @@ int main() {
 
     //Get value at gamebase+offset
     ReadProcessMemory(processHandle, (LPVOID)(gameBaseAddress + offsetGameToBaseAdress), &baseAddress, sizeof(baseAddress), NULL);
-    //std::cout << "debugginfo: baseaddress = " << std::hex << baseAddress << std::endl;
+
     DWORD pointsAddress = baseAddress; //the Adress we need -> change now while going through offsets
     for (size_t i = 0; i < pointsOffsets.size() - 1; i++) // -1 because we dont want the value at the last offset
     {
         ReadProcessMemory(processHandle, (LPVOID)(pointsAddress + pointsOffsets.at(i)), &pointsAddress, sizeof(pointsAddress), NULL);
-        //std::cout << "debugginfo: Value at offset = " << std::hex << pointsAddress << std::endl;
     }
     pointsAddress += pointsOffsets.at(pointsOffsets.size() - 1); //Add Last offset -> done!!
 
@@ -120,7 +122,7 @@ int main() {
         }
 
         if (command == "1") {
-            std::cout << "How much ammo do you want?" << std::endl;
+            std::cout << "How much ammo do you want?: ";
             int newPoints = 0;
             std::cin >> newPoints;
             WriteProcessMemory(processHandle, (LPVOID)(pointsAddress), &newPoints, sizeof(newPoints), NULL);
@@ -129,61 +131,35 @@ int main() {
         if (command == "2") {
             foundValues.clear();
             std::cout << "New scan" << std::endl;
-            std::cout << "Enter integer value to find" << std::endl;
+            std::cout << "Enter integer value to find: ";
             
             int inValue = 0;
             std::cin >> inValue;
 
-            // Cast the integer value to a void pointer
-            void* voidPtr = (void*)&inValue;
-
-            foundValues = findBytePatternInProcessMemory(processHandle, voidPtr, sizeof(inValue));
-            
-            if (!foundValues.empty()) {
-                std::cout << "Found " << foundValues.size() << " addresses. Show them? y/N: ";
-                std::string showConsent;
-                fseek(stdin, 0, SEEK_END);
-                std::getline(std::cin, showConsent);
-
-                if (showConsent == "y" || showConsent == "yes") {
-                    for (size_t i = 0; i < foundValues.size(); i++) {
-                        std::stringstream ss;
-                        std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
-                    }
-                }
-            }
+            foundValues = findBytePatternInProcessMemory(processHandle, (void*)&inValue, sizeof(inValue));
+            printAddresses(foundValues);
         }
 
         if (command == "3") {
             std::cout << "Next scan" << std::endl;
-            std::cout << "Enter integer value to find" << std::endl;
+            std::cout << "Enter integer value to find: ";
+            
             int inValue = 0;
             std::cin >> inValue;
-            void* voidPtr = (void*)&inValue;
-            refindBytePatternInProcessMemory(processHandle, &inValue, sizeof(inValue), foundValues);
-
-            if (!foundValues.empty()) {
-                std::cout << "Found " << foundValues.size() << " addresses. Show them? y/N: ";
-                char show;
-                std::cin >> show;
-                if (show == 'y') {
-                    for (size_t i = 0; i < foundValues.size(); i++) {
-                        std::stringstream ss;
-                        std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
-                    }
-                }
-            }
+            
+            refindBytePatternInProcessMemory(processHandle, (void*)&inValue, sizeof(inValue), foundValues);
+            printAddresses(foundValues);
         }
 
         if (command == "4") {
             DWORD address = 0;
             int newValue = 0;
 
-            std::cout << "Enter address to write to (hex)" << std::endl;
+            std::cout << "Enter address to write to (hex): ";
             std::cin >> std::hex >> address;
 
-            std::cout << "Enter value to write (decimal)" << std::endl;
-            std::cin >> newValue;
+            std::cout << "Enter value to write (decimal): ";
+            std::cin >> std::dec >> newValue;
 
             WriteProcessMemory(processHandle, (LPVOID)(address), &newValue, sizeof(newValue), NULL);
         }
