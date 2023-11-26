@@ -25,7 +25,7 @@ DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
     }
     CloseHandle(hSnapshot);
 
-    std::cout << std::hex << dwModuleBaseAddress << std::endl;
+    //std::cout << std::hex << dwModuleBaseAddress << std::endl;
     return dwModuleBaseAddress;
 }
 
@@ -75,6 +75,11 @@ int main() {
     DWORD pID = GetProcessIdByName(processName);
     HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
 
+    if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) {
+        std::cout << "Failed to open process" << std::endl;
+        return 1;
+    }
+
     DWORD gameBaseAddress = GetModuleBaseAddress(processName, pID);
     DWORD offsetGameToBaseAdress = 0x00183828;
     std::vector<DWORD> pointsOffsets{ 0x8,0x56C,0x64,0x68,0x30,0x2BC };
@@ -82,34 +87,46 @@ int main() {
 
     //Get value at gamebase+offset
     ReadProcessMemory(processHandle, (LPVOID)(gameBaseAddress + offsetGameToBaseAdress), &baseAddress, sizeof(baseAddress), NULL);
-    std::cout << "debugginfo: baseaddress = " << std::hex << baseAddress << std::endl;
+    //std::cout << "debugginfo: baseaddress = " << std::hex << baseAddress << std::endl;
     DWORD pointsAddress = baseAddress; //the Adress we need -> change now while going through offsets
-    for (int i = 0; i < pointsOffsets.size() - 1; i++) // -1 because we dont want the value at the last offset
+    for (size_t i = 0; i < pointsOffsets.size() - 1; i++) // -1 because we dont want the value at the last offset
     {
         ReadProcessMemory(processHandle, (LPVOID)(pointsAddress + pointsOffsets.at(i)), &pointsAddress, sizeof(pointsAddress), NULL);
-        std::cout << "debugginfo: Value at offset = " << std::hex << pointsAddress << std::endl;
+        //std::cout << "debugginfo: Value at offset = " << std::hex << pointsAddress << std::endl;
     }
     pointsAddress += pointsOffsets.at(pointsOffsets.size() - 1); //Add Last offset -> done!!
 
     //"UI"
+    const char* helpList =
+        "\n0: exit\n"
+        "1: increase ammunition amount in AssaulCube\n"
+        "2: first scan for a value\n"
+        "3: next scan for a value\n"
+        "4: modify value on address\n";
+
     std::cout << "Memory manipulator" << std::endl;
-    std::cout << "Press Numpad 0 to EXIT" << std::endl;
-    std::cout << "Press Numpad 1 to set Points" << std::endl;
 
     std::vector<void*> foundValues;
+    std::string command;
 
     while (true) {
-        Sleep(50);
-        if (GetAsyncKeyState(VK_NUMPAD0)) { // Exit
+        std::cout << helpList << std::endl;
+        std::cout << "> ";
+        fseek(stdin, 0, SEEK_END);
+        std::getline(std::cin, command);
+
+        if (command == "0") { // Exit
             return 0;
         }
-        if (GetAsyncKeyState(VK_NUMPAD1)) {//Mouseposition
-            std::cout << "How many points you want?" << std::endl;
+
+        if (command == "1") {
+            std::cout << "How much ammo do you want?" << std::endl;
             int newPoints = 0;
             std::cin >> newPoints;
             WriteProcessMemory(processHandle, (LPVOID)(pointsAddress), &newPoints, sizeof(newPoints), NULL);
         }
-        if (GetAsyncKeyState(VK_NUMPAD2)) {//Mouseposition
+
+        if (command == "2") {
             foundValues.clear();
             std::cout << "New scan" << std::endl;
             std::cout << "Enter integer value to find" << std::endl;
@@ -129,14 +146,15 @@ int main() {
                 std::getline(std::cin, showConsent);
 
                 if (showConsent == "y" || showConsent == "yes") {
-                    for (int i = 0; i < foundValues.size(); i++) {
+                    for (size_t i = 0; i < foundValues.size(); i++) {
                         std::stringstream ss;
                         std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
                     }
                 }
             }
         }
-        if (GetAsyncKeyState(VK_NUMPAD3)) {//Mouseposition
+
+        if (command == "3") {
             std::cout << "Next scan" << std::endl;
             std::cout << "Enter integer value to find" << std::endl;
             int inValue = 0;
@@ -149,7 +167,7 @@ int main() {
                 char show;
                 std::cin >> show;
                 if (show == 'y') {
-                    for (int i = 0; i < foundValues.size(); i++) {
+                    for (size_t i = 0; i < foundValues.size(); i++) {
                         std::stringstream ss;
                         std::cout << "0x" << std::hex << ((unsigned long long)foundValues[i]) << std::endl;
                     }
@@ -157,8 +175,7 @@ int main() {
             }
         }
 
-
-        if (GetAsyncKeyState(VK_NUMPAD4)) {//Mouseposition
+        if (command == "4") {
             DWORD address = 0;
             int newValue = 0;
 
@@ -169,7 +186,6 @@ int main() {
             std::cin >> newValue;
 
             WriteProcessMemory(processHandle, (LPVOID)(address), &newValue, sizeof(newValue), NULL);
-
         }
     }
 
